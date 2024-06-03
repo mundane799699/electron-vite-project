@@ -71,10 +71,9 @@ app.on("activate", () => {
 });
 
 let db: Database;
-let filename;
+const filename = path.join(app.getPath("userData"), "database.sqlite3");
 app.whenReady().then(async () => {
   createWindow();
-  filename = path.join(app.getPath("userData"), "database.sqlite3");
   db = await getSqlite3(filename);
   await query({
     sql: `
@@ -125,12 +124,11 @@ function insert(param): Promise<number> {
   });
 }
 
-let worker: Worker | null;
 ipcMain.handle("query-db", () => {
   // return query({ sql: "select * from tb_xhs_collect" });
   return new Promise((resolve, reject) => {
     const workerPath = path.join(__dirname, "worker.js");
-    worker ??= new Worker(workerPath);
+    const worker = new Worker(workerPath);
 
     worker.postMessage({ sql: "select * from tb_xhs_collect", filename });
 
@@ -140,10 +138,12 @@ ipcMain.handle("query-db", () => {
       } else {
         resolve(result);
       }
+      worker.terminate();
     });
 
     worker.on("error", (error) => {
       reject(error);
+      worker.terminate();
     });
   });
 });
